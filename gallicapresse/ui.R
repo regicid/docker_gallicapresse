@@ -37,7 +37,7 @@ shinyUI(navbarPage("Gallicapresse",
                                                         ),buttonLabel='Importer', placeholder='un rapport de recherche'),
                                               checkboxInput("relative", "Afficher les résultats en valeurs relatives", value = FALSE),
                                               checkboxInput("mois_pub", "Supprimer les numéros sans mois de publication enregistré", value = FALSE),
-                                              radioButtons("structure", "Données à analyser :",choices = list("Titre de presse" = 1, "Ville de publication" = 2,"Classement thématique de Dewey" = 3,"Périodicité" = 4),selected = 1),
+                                              radioButtons("structure", "Données à analyser :",choices = list("Titre de presse" = 1, "Ville de publication" = 2,"Classement thématique de Dewey" = 3,"Périodicité" = 4),selected = 2),
                                               div(style="display: inline-block;vertical-align:bottom",downloadButton('downloadData', 'Télécharger les données')),
                                               div(style="display: inline-block;vertical-align:bottom",downloadButton('downloadRR', 'Télécharger le rapport de recherche'))
                                             ),
