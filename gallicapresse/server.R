@@ -148,6 +148,16 @@ Plot17 <- function(data,input){
   return(plot17)
 }
 
+Plot18<-function(data,input){
+  tableau<-data[["tableau2"]]
+  tableau<-tableau[!is.na(tableau$lng),]
+  tableau<-tableau[!is.na(tableau$lat),]
+  maxi<-max(sapply(tableau$publisher, function(x) length(unique(x))))
+  
+  leaflet(tableau) %>% addProviderTiles(providers$Stamen.Toner) %>%
+    setView( lng=2.25, lat=47.15, 5 ) %>% addHeatmap(intensity=maxi*10/length(tableau$publisher),minOpacity=.25)
+}
+
 temps_traitement<-function(mot,dateRange){
   from<-min(dateRange)
   to<-max(dateRange)
@@ -293,7 +303,7 @@ prepare_data <- function(mot,dateRange){
   parse_gallica <- function(x){
     xml2::xml_find_all(tot, ".//srw:recordData")[x] %>% 
       xml_to_df() %>% 
-      select(-.name) %>% 
+      dplyr::select(-.name) %>% 
       .$`oai_dc:dc` %>% 
       .[[1]] %>% 
       mutate(recordId = 1:nrow(.)) %>% 
@@ -301,11 +311,11 @@ prepare_data <- function(mot,dateRange){
       tidyr::gather(var, val, - recordId) %>% 
       group_by(recordId, var) %>% 
       mutate(value = purrr::map(val, '.value') %>% purrr::flatten_chr() %>% paste0( collapse = " -- ")) %>% 
-      select(recordId, var, value) %>% 
+      dplyr::select(recordId, var, value) %>% 
       ungroup() %>% 
       mutate(var = stringr::str_remove(var, 'dc:')) %>% 
       tidyr::spread(var, value) %>% 
-      select(-.name)
+      dplyr::select(-.name)
   }
   # h=1
   # tot_df<-h%>%parse_gallica
@@ -317,7 +327,7 @@ prepare_data <- function(mot,dateRange){
   tot_df <- 1:nmax %>% 
     parse_gallica %>% 
     bind_rows()
-  tot_df<-select(tot_df,identifier,type,title,creator,contributor,publisher,date,description,format,source,rights,relation)
+  tot_df<-dplyr::select(tot_df,identifier,type,title,creator,contributor,publisher,date,description,format,source,rights,relation)
   tot_df$format<-str_remove_all(tot_df$format,"Nombre total de vues : ")
   colnames(tot_df)<-c("URL d'accès au document","Type de document","Titre","Auteurs","Contributeur","Éditeurs","Date d'édition","Description","Nombre de Vues","Provenance","Droits","Ark Catalogue")
   return(tot_df)
@@ -358,13 +368,13 @@ get_data<-function (tot_df,mot,dateRange,mois_pub){
   colnames(tot_df)<-str_remove_all(colnames(tot_df)," ")
   colnames(tot_df)<-str_remove_all(colnames(tot_df),"XUFEFF")
   colnames(tot_df)<-iconv(colnames(tot_df),from="UTF-8",to="ASCII//TRANSLIT")
-  tot_df<-select(tot_df,URLdaccesaudocument,Typededocument,Titre,Auteurs,Contributeur,Editeurs,Datededition,Description,NombredeVues,Provenance,Droits,ArkCatalogue)
+  tot_df<-dplyr::select(tot_df,URLdaccesaudocument,Typededocument,Titre,Auteurs,Contributeur,Editeurs,Datededition,Description,NombredeVues,Provenance,Droits,ArkCatalogue)
   colnames(tot_df)<-c("identifier","type","title","creator","contributor","publisher","date","description","format","source","rights","relation")
   from<-as.character(min(dateRange))
   to<-as.character(max(dateRange))
   
   total<-tot_df
-  total<-select(total,date,identifier,publisher,title,relation)
+  total<-dplyr::select(total,date,identifier,publisher,title,relation)
   total$relation<-str_remove_all(total$relation,".+-- ")
   total$relation<-str_remove_all(total$relation,"https://gallica.bnf.fr/ark:/12148/")
   total$relation<-str_replace_all(total$relation,"/","_")
@@ -417,12 +427,12 @@ get_data<-function (tot_df,mot,dateRange,mois_pub){
     mutate(publisher = strsplit(as.character(publisher), ",")) %>%
     unnest() %>%
     filter(publisher != "") %>%
-    select(date,identifier,publisher,title,ark,principaux_titres)
+    dplyr::select(date,identifier,publisher,title,ark,principaux_titres)
   total_bis<-total_bis %>%
     mutate(publisher = strsplit(as.character(publisher), " puis")) %>%
     unnest() %>%
     filter(publisher != "") %>%
-    select(date,identifier,publisher,title,ark,principaux_titres)
+    dplyr::select(date,identifier,publisher,title,ark,principaux_titres)
   total_bis$publisher<-str_remove_all(total_bis$publisher,"^ ")
   total_bis$publisher<-str_remove_all(total_bis$publisher,"$ ")
   total_bis$publisher<-str_remove_all(total_bis$publisher,"^([:alpha:] )")
@@ -454,7 +464,7 @@ get_data<-function (tot_df,mot,dateRange,mois_pub){
   
   #####THEMES DES JOURNAUX
   liste<-read.csv("liste_journaux_gallica_quotidiens.csv",encoding = "UTF-8")
-  liste<-select(liste,ark,sdewey_nom,sdewey_nom2,is_quotidien)
+  liste<-dplyr::select(liste,ark,sdewey_nom,sdewey_nom2,is_quotidien)
   colnames(liste)<-c("relation","sdewey_nom","sdewey_nom2","is_quotidien")
   total<-left_join(total,liste,"relation")
   total$sdewey_nom<-as.character(total$sdewey_nom)
@@ -627,6 +637,7 @@ shinyServer(function(input, output,session){
                                     content = function(con) {
                                       htmlwidgets::saveWidget(as_widget(Plot7(df,input)), con)
                                     })
+                                  
                                   output$plot7 <- renderLeaflet({Plot13(df,input)})
                                   output$downloadPlot7 <- downloadHandler(
                                     filename = function() {
@@ -634,6 +645,15 @@ shinyServer(function(input, output,session){
                                     },
                                     content = function(con) {
                                       htmlwidgets::saveWidget(as_widget(Plot13(df,input)), con)
+                                    })
+                                  
+                                  output$plot8 <- renderLeaflet({Plot18(df,input)})
+                                  output$downloadPlot8 <- downloadHandler(
+                                    filename = function() {
+                                      paste('carte_', min(input$dateRange),"_",max(input$dateRange),"_",input$mot, '.html', sep='')
+                                    },
+                                    content = function(con) {
+                                      htmlwidgets::saveWidget(as_widget(Plot18(df,input)), con)
                                     })
                                 }
                                 else if(input$relative==FALSE & input$structure==3){ 
@@ -693,6 +713,8 @@ shinyServer(function(input, output,session){
   output$legende4=renderText("Affichage : Gallicapresse par Benjamin Azoulay et Benoît de Courson")
   output$legende5=renderText("Source : gallica.bnf.fr")
   output$legende6=renderText("Affichage : Gallicapresse par Benjamin Azoulay et Benoît de Courson")
+  output$legende7=renderText("Source : gallica.bnf.fr")
+  output$legende8=renderText("Affichage : Gallicapresse par Benjamin Azoulay et Benoît de Courson")
   
   recherche<-reactive({input$mot})
   duree<-reactive({input$dateRange})
